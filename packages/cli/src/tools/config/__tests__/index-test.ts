@@ -204,7 +204,9 @@ test('should skip packages that have invalid configuration', () => {
   const spy = jest.spyOn(logger, 'warn');
   const {dependencies} = loadConfig(DIR);
   expect(dependencies).toMatchSnapshot('dependencies config');
-  expect(spy.mock.calls[0][0]).toMatchSnapshot('logged warning');
+  // Make error deterministic regardless of actual path
+  let error = spy.mock.calls[0][0].replace(/\([^)]+\)/, '(path)');
+  expect(error).toMatchSnapshot('logged warning');
 });
 
 test('does not use restricted "react-native" key to resolve config from package.json', () => {

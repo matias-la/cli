@@ -1,5 +1,4 @@
 import cosmiconfig from 'cosmiconfig';
-import {JoiError} from './errors';
 import * as schema from './schema';
 import {
   UserConfig,
@@ -25,10 +24,6 @@ export function readConfigFromDisk(rootFolder: string): UserConfig {
   const config = searchResult ? searchResult.config : undefined;
   const result = schema.projectConfig.validate(config);
 
-  if (result.error) {
-    throw new JoiError(result.error);
-  }
-
   return result.value as UserConfig;
 }
 
@@ -48,10 +43,6 @@ export function readDependencyConfigFromDisk(
   const config = searchResult ? searchResult.config : emptyDependencyConfig;
 
   const result = schema.dependencyConfig.validate(config);
-
-  if (result.error) {
-    throw new JoiError(result.error);
-  }
 
   return result.value as UserDependencyConfig;
 }

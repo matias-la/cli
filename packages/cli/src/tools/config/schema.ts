@@ -1,198 +1,206 @@
-import t, {SchemaLike} from 'joi';
+/* eslint-disable quotes */
+/* eslint-disable comma-dangle */
+/* eslint-disable prettier/prettier */
 
-const map = (key: RegExp | SchemaLike, value: SchemaLike) =>
-  t.object().unknown(true).pattern(key, value);
+const { validateValue } = require("@validatem/core");
+const isNonEmptyString = require("@validatem/is-non-empty-string");
+const allowExtraProperties = require("@validatem/allow-extra-properties");
+const arrayOf = require("@validatem/array-of");
+const required = require("@validatem/required");
+const isPlainObject = require("@validatem/is-plain-object");
+const anyProperty = require("@validatem/any-property");
+const isFunction = require("@validatem/is-function");
+const isBoolean = require("@validatem/is-boolean");
+const isNumber = require("@validatem/is-number");
+const isNumeric = require("@validatem/is-numeric");
+const isString = require("@validatem/is-string");
+const either = require("@validatem/either");
+const defaultTo = require("@validatem/default-to");
+
+function validatemToJoiAPI(rules: any) {
+  return {
+    validate: function (value: any) {
+      return { value: validateValue(value, rules) };
+    }
+  };
+}
+
+function joiArrayOf(rules: any) {
+  // NOTE: We insert `required` into the rules to match default Joi behaviour
+  return arrayOf([ required, rules ]);
+}
+
+// This is separate from joiArrayOf because not all of the original array rules specified a default value
+function defaultArrayOf(rules: any) {
+  return [ defaultTo([]), joiArrayOf(rules) ];
+}
+
+function defaultObject(rules: any) {
+  return [ defaultTo({}), rules ];
+}
 
 /**
  * Schema for CommandT
  */
-const command = t.object({
-  name: t.string().required(),
-  description: t.string(),
-  usage: t.string(),
-  func: t.func().required(),
-  options: t.array().items(
-    t
-      .object({
-        name: t.string().required(),
-        description: t.string(),
-        parse: t.func(),
-        default: t
-          .alternatives()
-          .try(t.bool(), t.number(), t.string().allow(''), t.func()),
-      })
-      .rename('command', 'name', {ignoreUndefined: true}),
-  ),
-  examples: t.array().items(
-    t.object({
-      desc: t.string().required(),
-      cmd: t.string().required(),
-    }),
-  ),
-});
+const isCommand = {
+  name: [ required, isNonEmptyString ],
+  description: isNonEmptyString,
+  usage: isNonEmptyString,
+  func: [ required, isFunction ],
+  options: joiArrayOf([
+    // Alias command -> name
+    (object: any) => ({ name: object.command, ... object }),
+    {
+      name: [ required, isNonEmptyString ],
+      description: isNonEmptyString,
+      parse: isFunction,
+      default: either([
+        isBoolean, isNumber, isString, isFunction,
+        // NOTE: Needed for compatibility with the original Joi `.number` rule, which allows numeric strings by default
+        isNumeric({ allowDecimal: true, allowNegative: true, parse: true })
+      ])
+    }
+  ]),
+  examples: joiArrayOf({
+    desc: [ required, isNonEmptyString ],
+    cmd: [ required, isNonEmptyString ]
+  })
+};
 
 /**
  * Schema for HealthChecksT
  */
-const healthCheck = t.object({
-  label: t.string().required(),
-  healthchecks: t.array().items(
-    t.object({
-      label: t.string().required(),
-      isRequired: t.bool(),
-      description: t.string(),
-      getDiagnostics: t.func(),
-      win32AutomaticFix: t.func(),
-      darwinAutomaticFix: t.func(),
-      linuxAutomaticFix: t.func(),
-      runAutomaticFix: t.func().required(),
-    }),
-  ),
-});
+const isHealthCheck = {
+  label: [ required, isNonEmptyString ],
+  healthchecks: joiArrayOf({
+    label: [ required, isNonEmptyString ],
+    isRequired: isBoolean,
+    description: isNonEmptyString,
+    getDiagnostics: isFunction,
+    win32AutomaticFix: isFunction,
+    darwinAutomaticFix: isFunction,
+    linuxAutomaticFix: isFunction,
+    runAutomaticFix: [ required, isFunction ],
+  })
+};
 
 /**
  * Schema for UserDependencyConfigT
  */
-export const dependencyConfig = t
-  .object({
-    dependency: t
-      .object({
-        platforms: map(t.string(), t.any())
-          .keys({
-            ios: t
-              .object({
-                project: t.string(),
-                podspecPath: t.string(),
-                sharedLibraries: t.array().items(t.string()),
-                libraryFolder: t.string(),
-                scriptPhases: t.array().items(t.object()),
-                configurations: t.array().items(t.string()).default([]),
-              })
-              .default({}),
-            android: t
-              .object({
-                sourceDir: t.string(),
-                manifestPath: t.string(),
-                packageImportPath: t.string(),
-                packageInstance: t.string(),
-                buildTypes: t.array().items(t.string()).default([]),
-              })
-              .default({}),
-          })
-          .default(),
-        assets: t.array().items(t.string()).default([]),
-        hooks: map(t.string(), t.string()).default({}),
-        params: t
-          .array()
-          .items(
-            t.object({
-              name: t.string(),
-              type: t.string(),
-              message: t.string(),
-            }),
-          )
-          .default([]),
-      })
-      .default(),
-    platforms: map(
-      t.string(),
-      t.object({
-        npmPackageName: t.string().optional(),
-        dependencyConfig: t.func(),
-        projectConfig: t.func(),
-        linkConfig: t.func(),
+export const dependencyConfig = validatemToJoiAPI(
+  defaultObject(allowExtraProperties({
+    dependency: defaultObject({
+      platforms: defaultObject(allowExtraProperties({
+        ios: defaultObject({
+          project: isNonEmptyString,
+          podspecPath: isNonEmptyString,
+          sharedLibraries: joiArrayOf(isNonEmptyString),
+          libraryFolder: isNonEmptyString,
+          scriptPhases: joiArrayOf(isPlainObject),
+          configurations: defaultArrayOf(isNonEmptyString)
+        }),
+        android: defaultObject({
+          sourceDir: isNonEmptyString,
+          manifestPath: isNonEmptyString,
+          packageImportPath: isNonEmptyString,
+          packageInstance: isNonEmptyString,
+          buildTypes: defaultArrayOf(isNonEmptyString)
+        })
+      })),
+      assets: defaultArrayOf(isNonEmptyString),
+      hooks: defaultObject(anyProperty({
+        key: isNonEmptyString,
+        value: isNonEmptyString
+      })),
+      params: defaultArrayOf({
+        name: isNonEmptyString,
+        type: isNonEmptyString,
+        message: isNonEmptyString
       }),
-    ).default({}),
-    commands: t.array().items(command).default([]),
-    healthChecks: t.array().items(healthCheck).default([]),
-  })
-  .unknown(true)
-  .default();
+    }),
+    platforms: defaultObject(anyProperty({
+      key: isNonEmptyString,
+      value: {
+        npmPackageName: isNonEmptyString,
+        dependencyConfig: isFunction,
+        projectConfig: isFunction,
+        linkConfig: isFunction
+      }
+    })),
+    commands: defaultArrayOf(isCommand),
+    healthChecks: defaultArrayOf(isHealthCheck)
+  }))
+);
 
 /**
  * Schema for ProjectConfigT
  */
-export const projectConfig = t
-  .object({
-    dependencies: map(
-      t.string(),
-      t
-        .object({
-          root: t.string(),
-          platforms: map(t.string(), t.any()).keys({
-            ios: t
-              .object({
-                sourceDir: t.string(),
-                folder: t.string(),
-                pbxprojPath: t.string(),
-                podfile: t.string(),
-                podspecPath: t.string(),
-                projectPath: t.string(),
-                projectName: t.string(),
-                libraryFolder: t.string(),
-                sharedLibraries: t.array().items(t.string()),
-                configurations: t.array().items(t.string()).default([]),
-              })
-              .allow(null),
-            android: t
-              .object({
-                sourceDir: t.string(),
-                folder: t.string(),
-                packageImportPath: t.string(),
-                packageInstance: t.string(),
-                buildTypes: t.array().items(t.string()).default([]),
-              })
-              .allow(null),
-          }),
-          assets: t.array().items(t.string()),
-          hooks: map(t.string(), t.string()),
-          params: t.array().items(
-            t.object({
-              name: t.string(),
-              type: t.string(),
-              message: t.string(),
-            }),
-          ),
+export const projectConfig = validatemToJoiAPI(
+  defaultObject(allowExtraProperties({
+    dependencies: defaultObject(anyProperty({
+      key: isNonEmptyString,
+      value: {
+        root: isNonEmptyString,
+        platforms: allowExtraProperties({
+          ios: {
+            sourceDir: isNonEmptyString,
+            folder: isNonEmptyString,
+            pbxprojPath: isNonEmptyString,
+            podfile: isNonEmptyString,
+            podspecPath: isNonEmptyString,
+            projectPath: isNonEmptyString,
+            projectName: isNonEmptyString,
+            libraryFolder: isNonEmptyString,
+            sharedLibraries: joiArrayOf(isNonEmptyString),
+            configurations: defaultArrayOf(isNonEmptyString)
+          },
+          android: {
+            sourceDir: isNonEmptyString,
+            folder: isNonEmptyString,
+            packageImportPath: isNonEmptyString,
+            packageInstance: isNonEmptyString,
+            buildTypes: defaultArrayOf(isNonEmptyString),
+          }
+        }),
+        assets: joiArrayOf(isNonEmptyString),
+        hooks: anyProperty({ key: isNonEmptyString, value: isNonEmptyString }),
+        params: joiArrayOf({
+          name: isNonEmptyString,
+          type: isNonEmptyString,
+          message: isNonEmptyString
         })
-        .allow(null),
-    ).default({}),
-    reactNativePath: t.string(),
-    project: map(t.string(), t.any())
-      .keys({
-        ios: t
-          .object({
-            project: t.string(),
-            sharedLibraries: t.array().items(t.string()),
-            libraryFolder: t.string(),
-          })
-          .default({}),
-        android: t
-          .object({
-            sourceDir: t.string(),
-            manifestPath: t.string(),
-            packageName: t.string(),
-            packageFolder: t.string(),
-            mainFilePath: t.string(),
-            stringsPath: t.string(),
-            settingsGradlePath: t.string(),
-            assetsPath: t.string(),
-            buildGradlePath: t.string(),
-            appName: t.string(),
-          })
-          .default({}),
-      })
-      .default(),
-    assets: t.array().items(t.string()).default([]),
-    commands: t.array().items(command).default([]),
-    platforms: map(
-      t.string(),
-      t.object({
-        npmPackageName: t.string().optional(),
-        dependencyConfig: t.func(),
-        projectConfig: t.func(),
-        linkConfig: t.func(),
+      }
+    })),
+    reactNativePath: isNonEmptyString,
+    project: defaultObject(allowExtraProperties({
+      ios: defaultObject({
+        project: isNonEmptyString,
+        sharedLibraries: joiArrayOf(isNonEmptyString),
+        libraryFolder: isNonEmptyString
       }),
-    ).default({}),
-  })
-  .unknown(true)
-  .default();
+      android: defaultObject({
+        sourceDir: isNonEmptyString,
+        manifestPath: isNonEmptyString,
+        packageName: isNonEmptyString,
+        packageFolder: isNonEmptyString,
+        mainFilePath: isNonEmptyString,
+        stringsPath: isNonEmptyString,
+        settingsGradlePath: isNonEmptyString,
+        assetsPath: isNonEmptyString,
+        buildGradlePath: isNonEmptyString,
+        appName: isNonEmptyString,
+      })
+    })),
+    assets: defaultArrayOf(isNonEmptyString),
+    commands: defaultArrayOf(isCommand),
+    platforms: defaultObject(anyProperty({
+      key: isNonEmptyString,
+      value: {
+        npmPackageName: isNonEmptyString,
+        dependencyConfig: isFunction,
+        projectConfig: isFunction,
+        linkConfig: isFunction
+      }
+    }))
+  }))
+);
