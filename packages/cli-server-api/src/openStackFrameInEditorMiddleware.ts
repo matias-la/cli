@@ -22,6 +22,9 @@ function getOpenStackFrameInEditorMiddleware({watchFolders}: Options) {
     if (!req.rawBody) {
       return next(new Error('missing request body'));
     }
+    if (!/^application\/json/.test(req.headers['content-type'] || '')) {
+      return next(new Error('invalid content type'));
+    }
     const frame = JSON.parse(req.rawBody);
     launchEditor(frame.file, frame.lineNumber, watchFolders);
     res.end('OK');

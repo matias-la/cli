@@ -20,6 +20,9 @@ function openURLMiddleware(
   if (!req.rawBody) {
     return next(new Error('missing request body'));
   }
+  if (!/^application\/json/.test(req.headers['content-type'] || '')) {
+    return next(new Error('invalid content type'));
+  }
   const {url} = JSON.parse(req.rawBody);
   logger.info(`Opening ${url}...`);
   launchDefaultBrowser(url);

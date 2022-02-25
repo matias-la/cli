@@ -12,6 +12,10 @@ export default function systraceProfileMiddleware(
   req: http.IncomingMessage & {rawBody: string},
   res: http.ServerResponse,
 ) {
+  if (!/^application\/json/.test(req.headers['content-type'] || '')) {
+    res.end('invalid content type');
+    return;
+  }
   logger.info('Dumping profile information...');
   const dumpName = `/tmp/dump_${Date.now()}.json`;
   fs.writeFileSync(dumpName, req.rawBody);
