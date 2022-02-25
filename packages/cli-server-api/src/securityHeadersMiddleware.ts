@@ -26,6 +26,14 @@ export default function securityHeadersMiddleware(
     return;
   }
 
+  // Block requests to hostnames other than localhost
+  if (
+    typeof req.headers.host !== 'string' ||
+    !/^localhost:/.test(req.headers.host)
+  ) {
+    return next(new Error('invalid hostname'));
+  }
+
   // Block MIME-type sniffing.
   res.setHeader('X-Content-Type-Options', 'nosniff');
 
