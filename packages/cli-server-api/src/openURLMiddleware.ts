@@ -24,6 +24,9 @@ function openURLMiddleware(
     return next(new Error('invalid content type'));
   }
   const {url} = JSON.parse(req.rawBody);
+  if (!/^https?:\/\//.test(url)) {
+    return next(new Error('only http:// and https:// URLs are supported'));
+  }
   logger.info(`Opening ${url}...`);
   launchDefaultBrowser(url);
   res.end('OK');
