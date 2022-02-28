@@ -6,7 +6,7 @@
  */
 import http from 'http';
 import {launchDebugger, logger} from '@react-native-community/cli-tools';
-import {exec} from 'child_process';
+import {execFile} from 'child_process';
 
 function launchDefaultDebugger(
   host: string | undefined,
@@ -17,11 +17,6 @@ function launchDefaultDebugger(
   const debuggerURL = `http://${hostname}:${port}/debugger-ui${args}`;
   logger.info('Launching Dev Tools...');
   launchDebugger(debuggerURL);
-}
-
-function escapePath(pathname: string) {
-  // " Can escape paths with spaces in OS X, Windows, and *nix
-  return `"${pathname}"`;
 }
 
 type LaunchDevToolsOptions = {
@@ -51,10 +46,8 @@ function startCustomDebugger({
   watchFolders: ReadonlyArray<string>;
   customDebugger: string;
 }) {
-  const folders = watchFolders.map(escapePath).join(' ');
-  const command = `${customDebugger} ${folders}`;
-  logger.info('Starting custom debugger by executing:', command);
-  exec(command, function (error) {
+  logger.info('Starting custom debugger by executing:', customDebugger);
+  execFile(customDebugger, watchFolders, function (error) {
     if (error !== null) {
       logger.error('Error while starting custom debugger:', error.stack || '');
     }
