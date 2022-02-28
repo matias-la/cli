@@ -1,7 +1,5 @@
 // @ts-ignore
-import envinfo from 'envinfo';
 import {EnvironmentInfo} from '@react-native-community/cli-types';
-import {platform} from 'os';
 
 /**
  * Returns information about the running system.
@@ -12,42 +10,8 @@ import {platform} from 'os';
 async function getEnvironmentInfo(): Promise<EnvironmentInfo>;
 async function getEnvironmentInfo(json: true): Promise<EnvironmentInfo>;
 async function getEnvironmentInfo(json: false): Promise<string>;
-async function getEnvironmentInfo(
-  json = true,
-): Promise<string | EnvironmentInfo> {
-  const options = {json, showNotFound: true};
-
-  let packages = ['react', 'react-native', '@react-native-community/cli'];
-
-  const outOfTreePlatforms: {[key: string]: string} = {
-    darwin: 'react-native-macos',
-    win32: 'react-native-windows',
-  };
-
-  const outOfTreePlatformPackage = outOfTreePlatforms[platform()];
-  if (outOfTreePlatformPackage) {
-    packages.push(outOfTreePlatformPackage);
-  }
-
-  const info = (await envinfo.run(
-    {
-      System: ['OS', 'CPU', 'Memory', 'Shell'],
-      Binaries: ['Node', 'Yarn', 'npm', 'Watchman'],
-      IDEs: ['Xcode', 'Android Studio', 'Visual Studio'],
-      Managers: ['CocoaPods'],
-      Languages: ['Java'],
-      SDKs: ['iOS SDK', 'Android SDK', 'Windows SDK'],
-      npmPackages: packages,
-      npmGlobalPackages: ['*react-native*'],
-    },
-    options,
-  )) as string;
-
-  if (options.json) {
-    return JSON.parse(info);
-  }
-
-  return info.trim();
+async function getEnvironmentInfo(): Promise<string | EnvironmentInfo> {
+  throw new Error('getEnvironmentInfo disabled by Exodus audit team due to security reasons')
 }
 
 export default getEnvironmentInfo;
