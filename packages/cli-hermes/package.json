@@ -12,7 +12,8 @@
     "@react-native-community/cli-tools": "^5.0.1",
     "chalk": "^3.0.0",
     "hermes-profile-transformer": "^0.0.6",
-    "ip": "^1.1.5"
+    "ip": "^1.1.5",
+    "shell-quote": "1.6.1"
   },
   "files": [
     "build",

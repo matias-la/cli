@@ -1,9 +1,11 @@
 import {Config} from '@react-native-community/cli-types';
-import {execSync} from 'child_process';
+import {execSync, execFileSync} from 'child_process';
 import {logger, CLIError} from '@react-native-community/cli-tools';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+// @ts-ignore @types not installed
+import shellQuote from 'shell-quote';
 import transformer from 'hermes-profile-transformer';
 import {findSourcemap, generateSourcemap} from './sourcemapUtils';
 import {
@@ -16,7 +18,7 @@ import {
  */
 function getLatestFile(packageName: string): string {
   try {
-    const file = execSync(`adb shell run-as ${packageName} ls cache/ -tp | grep -v /$ | egrep '.cpuprofile' | head -1
+    const file = execSync(`adb shell run-as ${shellQuote.quote([packageName])} ls cache/ -tp | grep -v /$ | egrep '.cpuprofile' | head -1
         `);
     return file.toString().trim();
   } catch (e) {
@@ -24,9 +26,9 @@ function getLatestFile(packageName: string): string {
   }
 }
 
-function execSyncWithLog(command: string) {
-  logger.debug(`${command}`);
-  return execSync(command);
+function execFileSyncWithLog(command: string, args: Array<string>) {
+  logger.debug(`${command} ${args}`);
+  return execFileSync(command, args);
 }
 
 /**
@@ -67,11 +69,11 @@ export async function downloadProfile(
     logger.debug('Internal commands run to pull the file:');
 
     // Copy the file from device's data to sdcard, then pull the file to a temp directory
-    execSyncWithLog(`adb shell run-as ${packageName} cp cache/${file} /sdcard`);
+    execFileSyncWithLog('adb', ['shell', 'run-as', packageName, 'cp', `cache/${file}`, '/sdcard']);
 
     // If --raw, pull the hermes profile to dstPath
     if (raw) {
-      execSyncWithLog(`adb pull /sdcard/${file} ${dstPath}`);
+      execFileSyncWithLog('adb', ['pull', `/sdcard/${file}`, dstPath]);
       logger.success(`Successfully pulled the file to ${dstPath}/${file}`);
     }
 
@@ -80,7 +82,7 @@ export async function downloadProfile(
       const osTmpDir = os.tmpdir();
       const tempFilePath = path.join(osTmpDir, file);
 
-      execSyncWithLog(`adb pull /sdcard/${file} ${tempFilePath}`);
+      execFileSyncWithLog('adb', ['pull', `/sdcard/${file}`, tempFilePath]);
 
       // If path to source map is not given
       if (!sourcemapPath) {
